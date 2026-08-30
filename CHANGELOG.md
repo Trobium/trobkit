@@ -1,0 +1,429 @@
+Change Log
+=========
+
+__6.4.0__
+
+## New Features
+
+- Typed `read` / `write` contract namespaces
+
+  Added contract.read and contract.write namespaces for type-safe, ergonomic access to contract methods. Functions are split by state mutability: view / pure (constant call) functions are exposed under contract.read, while state-changing functions are exposed under contract.write. When an ABI is declared as const, function names and argument types are checked at compile time.
+
+  - Call as contract.read.methodName([arg0, arg1, ...], options) / contract.write.methodName([arg0, arg1, ...], options).
+  - The write `account` option is a private key: its derived address owns and signs the transaction, so a write can be issued from a non-default signer — including on an instance with no default key. A value that is not a private key is rejected. Treat this value as secret. For reads, a `from` option sets the caller address directly (validated as an address).
+  - Validation errors (argument count, signer, call value, account) are surfaced as promise rejections.
+  - ABI functions literally named read or write remain callable via the legacy flat surface (handled through a proxy).
+  - Each function is additionally exposed under its full selector, e.g. contract.read['balanceOf(address)'] / contract.write['transfer(address,uint256)']. The selector form pins that exact overload, so same-arity overloads can be addressed unambiguously. Note: namespaces now enumerate each method under both its bare name and its selector, so Object.keys / for…in over contract.read / contract.write return two entries per function.
+
+- Added `utils.abi.encodeFunctionData`
+
+  Added utils.abi.encodeFunctionData(funcABI, args) to build smart contract calldata (function selector + encoded parameters). Validates argument count and supports Trobium-specific handling of trcToken (kept in the selector, encoded as `uint256`).
+
+- Added `transactionBuilder.updateWitness`
+
+  Added transactionBuilder.updateWitness(address, url, options) to create a WitnessUpdateContract transaction that updates a witness node URL. Validates the address and the URL format / length (≤ 256).
+
+## Improvements
+
+- Dropped `Buffer` in favor of `TextEncoder` / `TextDecoder`
+
+  Replaced Buffer`-based encoding in `trobkit, utils/crypto, utils/abi and utils/ethersUtils with TextEncoder / TextDecoder for better cross-environment (browser) compatibility. The conversion is byte-for-byte equivalent to the previous behavior.
+
+- `address.fromPrivateKey` accepts `0x`-prefixed private keys
+
+  Trobkit.address.fromPrivateKey now strips a leading 0x from the private key before deriving the address, so a private key works whether or not it carries the 0x prefix.
+
+## Changes
+
+- Bump axios from 1.15.0 to 1.18.0.
+- Bump dev dependency nyc to 18.
+- Add overrides for ws (8.21.0) and serialize-javascript (7.0.5) to pin security-patched versions.
+- build now runs the full build:all (esm, cjs, dist).
+
+__6.3.0__
+
+## New Features
+
+- **Added `trob.getContractInfo`**
+
+  Added `trob.getContractInfo(contractAddress)` method that retrieves detailed contract information via the `wallet/getcontractinfo` node API endpoint.
+
+- **Extended `deserializeTx` with full contract type coverage**
+
+  Added deserialization support for all remaining `TransactionBuilder` contract types via `raw_data_hex`:
+
+  - Account: `AccountCreateContract`, `AccountUpdateContract`, `SetAccountIdContract`, `AccountPermissionUpdateContract`
+  - Stake / Vote: `FreezeBalanceContract`, `UnfreezeBalanceContract`, `VoteWitnessContract`
+  - Proposal: `ProposalCreateContract`, `ProposalApproveContract`, `ProposalDeleteContract`
+  - Smart contract: `CreateSmartContract`, `UpdateSettingContract`, `UpdateEnergyLimitContract`, `ClearABIContract`
+  - DEX: `ExchangeCreateContract`, `ExchangeInjectContract`, `ExchangeWithdrawContract`, `ExchangeTransactionContract`
+  - `UpdateBrokerageContract`
+
+
+## Improvements
+
+- **Plugin restrictions**  
+
+  - Added `PROTECTED_MODULES` to prevent plugins from overriding 2 modules: `transactionBuilder`, `plugin`.  
+  - Added `PROTECTED_METHODS` to block plugins from overriding critical signing/key methods: `sign`, `signMessage`, `signMessageV2`, `signTransaction`, `signTypedData`, `multiSign`, `setPrivateKey`, `ecRecover`.  
+  - ⚠️ Note: Plugin support will be removed in the next major version.
+
+- **Bug fix**  
+
+  - Corrected the return type of the `getDelegatedResourceV2` in `trob.ts` to consistently return an array.
+
+## Changes
+
+- Remove dev dependency @eslint/eslintrc.
+- Bump serialize-javascript from 7.0.3 to 7.0.5.
+
+__6.2.2__
+
+## New Features
+
+- Added `getCreate2Address`
+
+  - Added support for `utils.address.getCreate2Address` utility method.
+
+  - Enables deterministic contract address computation using CREATE2.
+
+  - Useful for advanced contract deployment workflows and meta-deployment scenarios.
+
+## Improvements
+
+- Improvement in `decodeParams`
+
+    - Replaced {} with Object.create(null) in decodeParams.
+
+    - Prevents prototype pollution.
+
+- Robust argument encoding in `encodeArgs`
+
+  - Prevents valid falsy values from being incorrectly ignored.
+
+  - Improves reliability of contract parameter encoding.
+
+- Strict contract type validation in `contractJsonToProtobuf`
+
+    - Now throws an explicit error when encountering unsupported contract.type.
+
+    - Prevents silent failures during contract conversion.
+
+    - Improves developer debugging experience.
+
+__6.2.1__
+
+## Changes
+
+- Bump `axios` from v1.12.2 to v1.13.5
+- Bump `webpack` from v5.98.0 to v5.105.2
+
+__6.2.0__
+
+## New Features
+
+- **`trob.getNowWitnessList`**
+  Added a new method to retrieve the witness list with real-time vote counts. This feature is available for JAVA-Trobium v4.8.1 and above.
+
+- **New deserialization support**  
+  Added support for deserializing the following transaction types from `raw_data_hex`:
+
+    - `TransferAssetContract`
+    - `ParticipateAssetIssueContract`
+    - `AssetIssueContract`
+    - `UpdateAssetContract`
+
+__6.1.1__
+
+## Changes
+
+- Remove dependency `jsonwebtoken`.
+- Bump `validator` from v13.15.20 to v13.15.23.
+- Address other audit issues.
+
+__6.1.0__
+
+## New Features
+
+- **New deserialization support**  
+  Added support for deserializing the following transaction types from `raw_data_hex`:
+
+    - `TransferContract`
+    - `WithdrawBalanceContract`
+    - `WitnessCreateContract`
+
+- **`trob.getCurrentRefBlockParams`**  
+  Provides a method to retrieve the parameters required for transaction building. Users can pass these parameters to transaction constructors and customize the header information, making transaction creation more convenient.
+
+- **`trob.signTypedData` alias**  
+  Added `trob.signTypedData` as an alias pointing to the legacy `trob._signTypedData` method.
+
+## Changes
+
+- Removed `getHeaderInfo` from the `transactionBuilder` helper library. Use `trob.getCurrentRefBlockParams` instead.
+
+- Moved the `deserializeTransaction` function from `utils/transaction` to `utils/deserializeTx` for better scalability and maintainability of future modules.
+
+- Dependency updates:
+    - `axios` upgraded from 1.11.0 to 1.12.2
+    - `puppeteer` upgraded from 24.4.0 to 24.23.0
+
+__6.0.4__
+
+## New Features
+- Improve type inference in `Contract` module when using typescript.
+    - The `Contract` now infers method signatures based on the provided ABI.
+    - To enable accurate inference, the ABI should be defined using the `as const` assertion or passed directly into trobkit.contract().
+
+## Change
+- Change the return behavior of the `contract.new()` method.
+    - Previously, this method mutated the current instance and used the ABI stored on the Trobium blockchain, which proved to be unreliable. It now returns a new instance that uses the ABI provided in the options parameter.
+- Export `GetEventResultOptions` and `EventResponse`.
+- Allow using length as the value of the name field in the ABI, but you cannot use `result['length']` to read its value.
+- Bump `axios` from 1.8.3 to 1.11.0, bump `eslint` from 9.22.0 to 9.31.0.
+
+## Bug Fixes
+- Fix the issue where `addUpdateData` treats numeric strings as numbers.[#629](https://github.com/trobium/trobkit/issues/629)
+    - Starting from Trobkit v6.0.4, `addUpdateData` will use `Trobkit.fromUtf8` to convert the provided data string—unless it starts with '0x'.
+    - If the resulting data string has an odd length, a '0' will be prepended to ensure even length.
+
+__6.0.3__
+- Add support for deserializing 6 more transactions.
+- Fix npm audit issues.
+- Fix the error in the abi variable within `transactionBuilder.createSmartContract`.
+- Export Method class.
+- Add missing fields in internal_transactions.
+
+__6.0.2__
+- Bump axios from 1.7.4 to 1.8.3.
+- Fix npm audit problems.
+
+__6.0.1__
+- Support deserialize TriggerSmartContract transaction by raw_data_hex.
+- Replace `@trobkit3/google-protobuf` with `google-protobuf`.
+- Fix some type errors and API return type compatibility issues.
+
+__6.0.0__
+- Fix [issue543](https://github.com/trobium/trobkit/issues/543), replace type AxiosHeaders with InstanceType<typeof AxiosHeaders>.
+- Add type for value field in the return of the creation by TransactionBuilder methods.
+- Fix known type errors.
+- Bump axios from 1.6.8 to 1.7.4 and webpack from 5.78.0 to 5.94.0.
+- Add Trobkit.address.toChecksumAddress and Trobkit.address.isChecksumAddress APIs.
+- Fix the wrong action of `deocdeInput` API in Contract module. [#557](https://github.com/trobium/trobkit/issues/557)
+
+__6.0.0-beta.4__
+- Replace `ethers@v5/abi` with abiCoder of `ethers@v6`.
+- Bump ethers from v6.11.1 to v6.13.1.
+- Export all Types and enum objects.
+- Move `typescript` and other dev dependencies into `devDependencies` field in package.json.
+- Change headers type in Trobkit constructor.
+
+__6.0.0-beta.3__
+- Support recovering transaction signer address by `trob.ecRecover`.
+- Support both base58 format and hex format address field in keys of `updateAccountPermissions` params.
+- Support type for contract instance.
+
+__6.0.0-beta.2__
+- Bump ethers from 6.8.0 to 6.11.1
+- Bump ethereum-cryptography from 2.1.2 to 2.1.3
+- Bump axios from 1.6.2 to 1.6.8
+
+__6.0.0-beta.1__
+- Support [TIP586](https://github.com/trobium/tips/blob/master/tip-586.md) with `trob.getBandwidthPrices` and `trob.getEnergyPrices`.
+- Support custom block header info when creating transaction.
+
+__6.0.0-beta.0__
+- Add full type definition for Typescript.
+- Change Default exports to Named exports.
+- Change `Trobkit.createRandom(options)` to `Trobkit.createRandom(password, path, wordlist)`.
+- Change `Trobkit.fromMnemonic(mnemonic, path, wordlist)` to `Trobkit.fromMnemonic(mnemonic, path, password, wordlist)`.
+- All methods in `Trob` and `TransactionBuilder` perform an strict check for type and position of parameters.
+- All methods in Trobkit will throw an `Error` instance instead of a string. `e.message` should be used to access error information.
+- Update `Trobkit#event` API with new backend service([#422](https://github.com/trobium/trobkit/issues/422)).
+- Remove `Contract#watch()` method.
+- Support multi-dimension address array parameters in `TransactionBuilder#triggerSmartContract()`([#433](https://github.com/trobium/trobkit/issues/433)).
+
+__5.3.2__
+- Add custom block header argument for building transactions locally in `transactionBuilder` lib
+- Support [TIP586](https://github.com/trobium/tips/blob/master/tip-586.md) by `trob.getBandwidthPrices` and `trob.getEnergyPrices`
+- Support recover transaction signer address by `trob.ecRecover`
+- Support multi-dimension address array such as `address[][]` for ABI params encoding  in `triggerSmartContract` and `createSmartContract`  [#433](https://github.com/trobium/trobkit/issues/433)
+- Fix error when `triggerSmartContract` with error address due to the undefined callback [#429](https://github.com/trobium/trobkit/issues/429)
+- Bump axios from 0.26.1 to 1.6.2 [#445](https://github.com/trobium/trobkit/issues/445)
+
+__5.3.1__
+-   Fix `getBlockRange()` error for range of 1 ([#398](https://github.com/trobium/trobkit/issues/398)).
+-  Add support for `estimateenergy` in  `TransactionBuilder#deployConstantContract()` API.
+
+__5.3.0__
+- Replace `elliptic` with `ethereum-cryptography/secp256k1` 
+- Bump ethers to ^6.6.0
+- Optimize argument validation for `createToken`, `updateToken` and `applyForSR` 
+- callValue can be 0 when the contract constructor is payable
+- Support shouldPollResponse to customize poll times ([#368](https://github.com/trobium/trobkit/issues/368))
+- Support [Tip541](https://github.com/trobium/tips/issues/541) by `transactionBuilder.cancelUnfreezeBalanceV2`
+- Support [Tip542](https://github.com/trobium/tips/issues/542) by adding a parameter in `transactionBuilder.delegateResource`
+- Support estimate the energy used in contract deployment by `transactionBuilder.deployConstantContract`
+
+__5.2.0__
+- Support build transactions locally with protobuf 
+- Support multi-sign for `setAccountId`, `updateBrokerage`, `clearABI`, `updateAccountPermissions` function in `transactionBuilder` lib
+
+__5.1.0__
+- Add `freezeBalanceV2`, `unfreezeBalanceV2`, `delegateResource`, `undelegateResource` and `withdrawExpireUnfreeze` function in transactiobBuiler lib to support stakeV2 
+- Support `trobkit.transactionBuilder.estimateEnergy` to estimate energy for triggersmartcontract transaction
+- Add `getDelegatedResourceV2`, `getDelegatedResourceAccountIndexV2`, `getCanDelegatedMaxSize`, `getAvailableUnfreezeCount` and `getCanWithdrawUnfreezeAmount` function to query account resource info
+
+__5.0.0__
+- Add `trobkit.utils.transaction` lib to serialize and deserialize transaction 
+- Add `trobkit.utils.transaction.txJsonToPb` function to convert transaction json to protobuf
+- Add `trobkit.utils.transaction.txPbToTxID` function to get txID from transaction protobuf
+- Support new transaction builder `createAccount` 
+
+__4.4.0__
+- Support `createRandom` and `fromMnemonic` function
+- Add `trobkit.utils.message` lib, which includes `hashMessage`, `signMessage` and `verifyMessage`
+- Add `signMessageV2` and `verifyMessageV2` in `trobkit.trob` lib which can support plain text signature and verification
+- Add `size` filter for event watch 
+
+__4.3.0__
+- Support `_signTypedData`
+
+__4.2.0__
+- Add the name key when the `call()` and `send()` methods has only one return value
+- Optimize the `TriggerConstantContract()` method
+- Update `axios` to version 0.26.1
+- Update `karma` to version 6.3.17
+- Update `puppeteer` to version 13.5.1
+
+__4.1.0__
+- Add `encodeParamsV2ByABI` and `decodeParamsV2ByABI` functions in `trobkit.utils.abi` lib
+- Support abi v2 for `triggerSmartContract`, `createSmartContract`, `call` and `send` methods
+- Update `validator` to version 13.7.0
+- Update `axios` to version 0.24.0
+- Update discord group link
+
+__4.0.1__
+- Set _isConstant as true for call method
+- Ignore max feeLimit check
+- Change git repository url
+
+__4.0.0__
+- Support `broadcastHex` method
+- Ignore fullnode version check when calling `createToken` method
+- Update dependencies version
+- Add strict mode for `pkToAddress` method
+
+__3.2.7__
+- Add options `rawParameter` that format of the parameters method and args when creating or triggering a contract
+- Update `elliptic` to the latest version 6.5.4
+- Update `validator` to the latest version 13.6.0
+
+__3.2.6__
+- Add setHeader function
+
+__3.2.5__
+- Set feeLimit max value as 5000 TROB
+
+__3.2.4__
+- Set feeLimit default value as 150 TROB
+
+__3.2.3__
+- Support triggerSmartContract function with empty character functionSelector and empty array parameters
+- The triggerSmartContract function Support for anonymous contract parameter incoming
+
+__3.2.2__
+- Set feeLimit default value as 40 TROB
+- The `createToken` method supports 0 in its precision
+
+__3.1.0__
+- Update `elliptic` to the latest version 6.5.3
+- Update `ethers` to the latest version 5.0.8
+- Fix `loadAbi()`
+
+__3.0.0__
+- Support sidechain for SunNetwork
+- Set feeLimit default value as 20 TROB
+
+__2.10.2__
+- Support toHex function with a space and empty character as parameter
+- The sign function supports visible as true.
+- Fix delete the private key in test files
+- Fix start method returned from watch is undefined #45
+
+__2.10.1__
+* Fix `trob.listExchangesPaginated`
+
+__2.10.0__
+* Fix `trob.getTokenListByName`
+
+__2.9.0__
+* Support smart contracts with function that requires an array of addresses as a parameter, included the constructor during the deployment
+
+__2.8.1__
+* Add options `keepTxID` to show also the txID when triggering a contract with `shouldPollResponse`
+
+__2.8.0__
+* Improve in the plugin architecture allows someone to implement a full lib at the same level of Trob and TransactionBuilder
+
+__2.7.4__
+* Fix bugs of trob.getBrokerage and trob.getReward function
+
+__2.7.3__
+* Support new apis related to Java-Trobium 3.6.5
+* Original withdrawBlockRewards method support to withdraw user's reward
+
+__2.6.8__
+* Support extension of transaction expiration
+* Allow to add data to the transaction
+* Many minor changes and fixes
+
+__2.6.3__
+* Support get unconfirmed transaction function
+
+__2.6.0__
+* Support trigger constant contract, clear abi and add account by id
+* Add permission id option in functions related to creating transaction
+* Support multi-sign without permission id
+
+__2.5.6__
+* Reverse PR #6
+
+__2.5.5__
+* Ignore `receiverAddress` during `freezeBalance` and `unfreezeBalance` if it is equal to the owner address
+
+__2.5.4__
+* Adds cache in Trob to cache Contracts locally and make the process more efficient
+
+__2.5.2__
+* Adds static methods `Trob.signString` and `Trob.verifySignature`
+
+__2.5.0__
+* Allows freeBandwidth, freeBandwidthLimit, frozenAmount and frozenDuration to be zero
+
+__2.3.7__
+* Get rid of jssha to reduce the size of the package a little bit.
+
+__2.3.6__
+* Supports `/wallet/getapprovedlist` and `/wallet/getsignweight` JavaTron API.
+* Adds test for multi-sign workflow.
+
+__2.3.5__
+* Fixes a typo in `#event.getEventsByContractAddress` naming.
+
+__2.3.4__
+* Adds options to `#plugin.register` to pass parameters to `pluginInterface`.
+
+__2.3.3__
+* Adds filters during event watching.
+
+__2.3.2__
+* Removes mixed approach instantiating trobkit. Before you could pass the servers as an object, and the privateKey as a separate parameter. Now, you pass them either in the options object or in the params.
+
+__2.3.1__
+* Adds support for not-tld domain, like http://localhost
+* Improve the new format, allow passing the privateKey as a property in the option object
+
+__2.3.0__
+* Introduces new format to instantiate trobkit, passing an options object instead that `fullNode`, `solidityNode` and `eventServer` as separate params
+* Fixes bug in `_watch` which causes a continuous update of the `since` parameter
